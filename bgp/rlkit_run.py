@@ -20,15 +20,15 @@ Note you will need to perform a normal from-scratch run before any transfer runs
 
 t_start = time.time()
 base_name = 'tst'
-save_path = '/save/path'  # where the outputs will be saved
+save_path = './output'  # where the outputs will be saved
 full_path = '{}/{}'.format(save_path, base_name)
-source_path = '/source/path'  # the path to the location of the folder 'bgp' which contains the source code
+source_path = '../'  # the path to the location of the folder 'bgp' which contains the source code
 print(base_name)
 
 # General utility parameters
 debug = True
-device_list = ['cuda:0']  # list of cuda device ids or None for cpu
-device = 'cuda:0'  # the cuda device to default to for debug runs, can also set to 'cpu'
+device_list = None  # list of cuda device ids or None for cpu
+device = 'cpu'  # the cuda device to default to for debug runs, can also set to 'cpu'
 seed_options = [i for i in range(3)]
 validation_seed_offset = 1000000
 test_seed_offset = 2000000
@@ -87,7 +87,7 @@ update_seed_on_reset = True
 
 
 if not os.path.exists(full_path) and not finish:
-    os.mkdir(full_path)
+    os.makedirs(full_path)
 
 if transfer_run:
     num_epochs = 50
@@ -107,7 +107,7 @@ option_dict = OrderedDict([('seed', seed_options),
                            ('person', person_options),
                            ])
 for setting in itertools.product(*option_dict.values()):
-    seed, person= setting
+    seed, person = setting
     reset_lim = {'lower_lim': 10, 'upper_lim': 1000}
     name_args = OrderedDict({})
     for i in range(len(setting)):

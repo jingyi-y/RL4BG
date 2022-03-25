@@ -17,17 +17,17 @@ This script runs the BB baseline
 Seeds = namedtuple('seeds', ['numpy_seed', 'sensor_seed', 'scenario_seed'])
 n_jobs = 50
 name = 'basal_bolus'
-server = 'mld4'
-source_path = '/source/path'
-save_path = '/save/path'
+# server = 'mld4'
+source_path = './'
+save_path = 'bgp/output'
 full_path = '{}/{}'.format(save_path, name)
 
 if not os.path.exists(full_path):
-    os.mkdir(full_path)
+    os.makedirs(full_path)
 
 def run_bb(name, seed, n_days, full_path):
-    q = pd.read_csv('{}/simglucose/params/Quest2.csv'.format(source_path))
-    p = pd.read_csv('{}/simglucose/params/vpatient_params.csv'.format(source_path))
+    q = pd.read_csv('bgp/simglucose/params/Quest2.csv')
+    p = pd.read_csv('bgp/simglucose/params/vpatient_params.csv')
     carb_error_mean = 0
     carb_error_std = .2
     carb_miss_prob = .05
@@ -57,7 +57,7 @@ def run_bb(name, seed, n_days, full_path):
                                 fake_gt=False, fake_real=False,
                                 suppress_carbs=False, limited_gt=False,
                                 termination_penalty=None, hist_init=True, harrison_benedict=True, meal_duration=5,
-                                source_path=source_path)
+                                source_dir=source_path)
     action = cnt.manual_bb_policy(carbs=0, glucose=140)
     for i in tqdm(range(n_days * int(1440/sample_time))):
         o, r, d, info = env.step(action=action.basal+action.bolus)

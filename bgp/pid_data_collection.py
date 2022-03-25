@@ -10,9 +10,9 @@ import bgp.simglucose.envs.simglucose_gym_env as bgp_env
 This script was used to test the PID and PID-MA baselines. Note that it assumes 
 """
 
-data_dir = '/' # '/data/dir'
-source_dir = '/home/ifox/BGP_MLHC_trim'  # '/source/dir'
-name = 'experiment_name'
+data_dir = 'bgp/output/' # '/data/dir'
+source_dir = './'  # '/source/dir'
+name = 'pid_test'
 save_dir = '{}/{}'.format(data_dir, name)
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
@@ -29,12 +29,12 @@ carb_error_std = 0
 carb_miss_prob = 0
 # These names are determined by name in pid_test.py
 if residual_bolus:
-    grid, settings = joblib.load('/rl/dir/pid_ma_tune_experiment_name_final_itr/grid_and_settings.pkl')
+    grid, settings = joblib.load('bgp/output/pid_ma_tune_2/grid_and_settings.pkl')
 else:
-    grid, settings = joblib.load('/rl/dir/pid_tune_experiment_name_final_itr/grid_and_settings.pkl')
+    grid, settings = joblib.load('bgp/output/pid_tune_2/grid_and_settings.pkl')
 
 n_jobs = 50
-v_params = pd.read_csv('/source/path/simglucose/params/vpatient_params.csv')
+v_params = pd.read_csv('bgp/simglucose/params/vpatient_params.csv')
 for tstd in tstd_options:
     for person in person_options:
         vp_row = v_params.query('Name=="{}"'.format(person))
@@ -61,7 +61,8 @@ for tstd in tstd_options:
                                     suppress_carbs=False, limited_gt=False,
                                     termination_penalty=None, use_pid_load=False, hist_init=True,
                                     harrison_benedict=True, meal_duration=5,
-                                    carb_error_std=carb_error_std, carb_miss_prob=carb_miss_prob)
+                                    carb_error_std=carb_error_std, carb_miss_prob=carb_miss_prob,
+                                    source_dir=source_dir)
         res_arr = Parallel(n_jobs=n_jobs)(delayed(pid.pid_test)(env=env,
                                                                 pid=config['controller'],
                                                                 n_days=n_days,

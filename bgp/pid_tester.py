@@ -13,10 +13,10 @@ This script was used to tune the PID and PID-MA baselines. It performs an iterat
 refinement over possible parameters. The best parameters can then be tested using pid_data_collection.py
 """
 
-source_dir = '/source/dir'
-data_dir = '/data/dir'
+source_dir = './'
+data_dir = 'bgp/output'
 # note: current code assumes different names for residual_bolus and non residual_bolus
-name = 'pid_tune_experiment_name'
+name = 'pid_tune'
 
 n_iter = 3
 person_grid = (['adolescent#0{}'.format(str(i).zfill(2)) for i in range(1, 11)] +
@@ -43,7 +43,7 @@ for k in range(n_iter):
     print(k)
     itername = name+'_{}'.format(k)
     if not os.path.exists('{}/{}'.format(data_dir, itername)):
-        os.mkdir('{}/{}'.format(data_dir, itername))
+        os.makedirs('{}/{}'.format(data_dir, itername))
     for person in person_grid:
         print('Running person')
         kp_grid = grid[person]['kp']
@@ -83,13 +83,13 @@ for k in range(n_iter):
             if key not in res_grid:
                 res_grid[key] = []
             res_grid[key].append(res['hist'])
-        joblib.dump(res_grid, '{}/{}/{}.pkl'.format(RL_DIR, itername, person))
+        joblib.dump(res_grid, '{}/{}/{}.pkl'.format(data_dir, itername, person))
 
     # generate next grid
     print('Finished running')
     per_patient_perf = []
     for pat in person_grid:
-        dat = joblib.load('{}/{}/{}.pkl'.format(RL_DIR, itername, pat))
+        dat = joblib.load('{}/{}/{}.pkl'.format(data_dir, itername, pat))
         for key in dat:
             for seed in range(n_seeds):
                 d = {'name': pat, 'kp': key[0], 'ki': key[1], 'kd': key[2], 'seed': seed}
