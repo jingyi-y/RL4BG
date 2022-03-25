@@ -34,6 +34,7 @@ class T1DSimEnv(object):
         self.state = self.patient.state  # caching for model usage
         # TODO: make more general
         norm_params_full = joblib.load('{}/bgp/simglucose/params/adult_001_std_params.pkl'.format(source_dir))
+        # the above PKL file defines mu and sigma for a 13D vector (ground truth state), CHO, BG, CGM and insulin.
         new_mask = [True for _ in range(13)] + [True, False, False, True]  # throwing out BG and CGM
         norm_params_new = {'mu': norm_params_full['mu'][new_mask],
                            'std': norm_params_full['sigma'][new_mask]}

@@ -22,9 +22,68 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class DeepSACT1DEnv(gym.Env):
-    '''
-    A gym environment supporting SAC learning. Uses PID control for initialization
-    '''
+    """A gym environment supporting SAC learning. Uses PID control for initialization
+
+    Args:
+        reward_fun: reward function.
+        patient_name: name of a specific patient. Chosen from a subset of patients or adolescent#001 if not given.
+        seeds: dictionary, storing seeds for numpy, scenario and sensor.
+        reset_lim: dictionary, specifying the lower and upper limits for ending the game. If not given,
+                   set the limits to be {'lower_lim': 10, 'upper_lim': 1000}.
+        time: boolean, specifying whether include sin/cos converted time to the state.
+        meal: boolean, specifying whether include carbohydrate intake to the state.
+        gt: boolean. If true, state is a 1D vector consisting of ground truth values.
+        load: boolean. If True, load the environment from PKL file.
+        bw_meals: boolean, but doesn't have an effect in the code.
+        n_hours: integer, simulation hours.
+        time_std: None or integer. If integer, it determines the std of meal time upon generating semi-random
+                  balanced scenario.
+        norm: boolean. If true, state is normalized.
+        use_old_patient_env: boolean. If true, environment with the old patient module is loaded.
+        action_cap: None or integer. If integer, it defines the upper limit of action space.
+        action_bias: integer, bias of the insulin dose, probably has something to do with the noise of insulin pump.
+        action_scale: "basal" or integer. if action_scale == 'basal', scale the action such that the maximum amount of
+                      insulin delivered over a 5-minute interval is roughly equal to a normal meal bolus for each
+                      individual; otherwise it's the scaling factor.
+        basal_scaling: integer, a scale parameter for the action space so that the maximum amount of insulin delivered
+                       over a 5-minute interval is roughly equal to a normal meal bolus for each individual.
+        meal_announce: None or integer. If integer, future meal amount and meal time are added to the state.
+        residual_basal: boolean. If True, add patient-specific basal insulin rate to the action.
+        residual_bolus: boolean. If True, add meal bolus to the action when there is an upcoming meal.
+        residual_PID: boolean. If True, add insulin rate determined by the PID controller to the action.
+        fake_gt: boolean. If True, state = [cgm, iob]; otherwise state is the ground truth 13D state vector.
+        fake_real: boolean. If True, state is an unrolled vector of repeated ground truth states.
+        suppress_carbs: boolean. If True, set x0, x1 and x2 to 0 (empty glucose in stomach and intestine).
+        limited_gt: boolean. If True, state consists of plasma glucose and iob.
+        termination_penalty: None or integer to avoid early termination.
+        weekly: boolean. If true, the weekend scenario is created for weekends.
+        use_model: boolean. If true, model is used to predict the next state given the current ground truth 13D state
+                   vector, CHO and insulin.
+        model: model for predicting the next state.
+        model_device： cpu or gpu if available.
+        update_seed_on_reset: boolean. If true, seeds are updated whenever the env is reset.
+        deterministic_meal_size: boolean. If true, meal size is deterministic in the normal scenario defined in RandomBalancedScenario.
+        deterministic_meal_time: boolean. If true, meal time is deterministic in the normal scenario defined in RandomBalancedScenario..
+        deterministic_meal_occurrence: boolean, If true, meal occurrence is deterministic in the normal scenario defined in RandomBalancedScenario.
+        use_pid_load: boolean. If true, state is initialized by controlling bg with pid for several days.
+        hist_init: boolean. If true, state is initialized by loading patientname_data.pkl.
+        start_date: simulation start time. Simulation starts at 2018/01/01 0:00 if start_date is None.
+        use_custom_meal: boolean. If true, a custom balanced scenario would be generated.
+        custom_meal_num: integer, specifying the number of custom meals when use_custom_meal is True.
+        custom_meal_size: integer, specifying the size of custom meals when use_custom_meal is True.
+        starting_glucose: Not implemented in the code yet.
+        harrison_benedict: boolean. If True, use the harrison_benedict meal schedule.
+        restricted_carb: boolean. If True, create restricted scenario defined in RandomBalancedScenario.
+        meal_duration: integer, specifying the meal duration in RandomBalancedScenario and SemiRandomBalancedScenario.
+        rolling_insulin_lim: None or integer, the maximum sum of insulin doses accumulated from previous 12 steps till now.
+        universal: boolean. If true, choosing patient randomly from a subset of patients.
+        unrealistic: boolean. If true, create unrealistic scenario defined in RandomBalancedScenario.
+        reward_bias: integer, contributing to the actual reward.
+        carb_error_std: integer, indicating the deviation of the actual carb intake from the meal amount recorded in the meal schedule.
+        carb_miss_prob: integer, indicating the probability that the meal appeared in the meal schedule is skipped.
+        source_dir: parent directory of bgp.
+
+    """
     metadata = {'render.modes': ['human']}
 
     def __init__(self, reward_fun, patient_name=None, seeds=None,
@@ -67,8 +126,8 @@ class DeepSACT1DEnv(gym.Env):
         np.random.seed(seeds['numpy'])
         self.seeds = seeds
         self.sample_time = 5
-        self.day = int(1440 / self.sample_time)
-        self.state_hist = int((n_hours * 60) / self.sample_time)
+        self.day = int(1440 / self.sample_time)  # number of samples per day
+        self.state_hist = int((n_hours * 60) / self.sample_time)  # number of samples during simulation
         self.time = time
         self.meal = meal
         self.norm = norm
@@ -108,7 +167,7 @@ class DeepSACT1DEnv(gym.Env):
             start_time = datetime(self.start_date.year, self.start_date.month, self.start_date.day, 0, 0, 0)
         assert bw_meals  # otherwise code wouldn't make sense
         if reset_lim is None:
-            self.reset_lim = {'lower_lim': 10, 'upper_lim': 1000}
+            self.reset_ldeim = {'lower_lim': 10, 'upper_lim': 1000}
         else:
             self.reset_lim = reset_lim
         self.load = load
@@ -132,6 +191,9 @@ class DeepSACT1DEnv(gym.Env):
         self.env.scenario.day = 0
 
     def pid_load(self, n_days):
+        """
+        Control BG using PID controller in n_days.
+        """
         for i in range(n_days*self.day):
             b_val = self.pid.step(self.env.CGM_hist[-1])
             act = Action(basal=0, bolus=b_val)
@@ -141,10 +203,12 @@ class DeepSACT1DEnv(gym.Env):
         return self._step(action, cho=None)
 
     def translate(self, action):
+        """Scale the action"""
         if self.action_scale == 'basal':
             # 288 samples per day, bolus insulin should be 75% of insulin dose
             # split over 4 meals with 5 minute sampling rate, max unscaled value is 1+action_bias
             # https://care.diabetesjournals.org/content/34/5/1089
+            # basal_scaling = normal bolus / maximum amount of insulin over 5 mins = (288*0.75/4) / (1*0.25*5) = 43.2
             action = (action + self.action_bias) * ((self.ideal_basal * self.basal_scaling) / (1 + self.action_bias))
         else:
             action = (action + self.action_bias) * self.action_scale
@@ -177,6 +241,7 @@ class DeepSACT1DEnv(gym.Env):
                 hyper_correct = (glucose > self.target) * (glucose - self.target) / self.CF
                 hypo_correct = (glucose < self.low_lim) * (self.low_lim - glucose) / self.CF
                 bolus = 0
+                # if there have been no meals in the past three hours
                 if self.last_cf > self.cooldown:
                     bolus += hyper_correct - hypo_correct
                 bolus += carb_correct
@@ -203,6 +268,12 @@ class DeepSACT1DEnv(gym.Env):
         return state, reward, done, info
 
     def announce_meal(self, meal_announce=None):
+        """Check whether there is upcoming meal given the current time.
+        args:
+            meal_announce: None or integer that defines how many minutes in advance the meal is announced.
+        returns:
+            meal amount, time after which the meal occurs
+        """
         t = self.env.time.hour * 60 + self.env.time.minute  # Assuming 5 minute sampling rate
         for i, m_t in enumerate(self.env.scenario.scenario['meal']['time']):
             # round up to nearest 5
@@ -219,6 +290,8 @@ class DeepSACT1DEnv(gym.Env):
         return 0, 0
 
     def calculate_iob(self):
+        """Calculate the total amount of insulin on board (IOB), which refers to insulin that has been
+        infused but still working on the body."""
         ins = self.env.insulin_hist
         return np.dot(np.flip(self.iob, axis=0)[-len(ins):], ins[-len(self.iob):])
 
@@ -229,9 +302,9 @@ class DeepSACT1DEnv(gym.Env):
             bg = np.array(bg)/400.
             insulin = np.array(insulin) * 10
         if len(bg) < self.state_hist:
-            bg = np.concatenate((np.full(self.state_hist - len(bg), -1), bg))
+            bg = np.concatenate((np.full(self.state_hist - len(bg), -1), bg))  # pad with -1
         if len(insulin) < self.state_hist:
-            insulin = np.concatenate((np.full(self.state_hist - len(insulin), -1), insulin))
+            insulin = np.concatenate((np.full(self.state_hist - len(insulin), -1), insulin))  # pad with -1
         return_arr = [bg, insulin]
         if self.time:
             time_dt = self.env.time_hist[-self.state_hist:]
@@ -249,9 +322,9 @@ class DeepSACT1DEnv(gym.Env):
             if self.weekly:
                 # binary flag signalling weekend
                 if self.env.scenario.day == 5 or self.env.scenario.day == 6:
-                    return_arr.append(np.full(self.state_hist, 1))
+                    return_arr.append(np.full(self.state_hist, 1))  # append the state with 1 if weekend
                 else:
-                    return_arr.append(np.full(self.state_hist, 0))
+                    return_arr.append(np.full(self.state_hist, 0))  # append the state with 0 if not weekend
         if self.meal:
             cho = self.env.CHO_hist[-self.state_hist:]
             if normalize:
@@ -371,6 +444,9 @@ class DeepSACT1DEnv(gym.Env):
                              sample_time=self.sample_time, source_dir=self.source_dir)
         if self.hist_init:
             self.env_init_dict = joblib.load("{}/{}_data.pkl".format(self.pid_env_path, self.patient_name))
+            # The above PKL file is a dictionary with the following keys:
+            # "state", "time", "time_hist", "bg_hist", "cgm_hist", "risk_hist", "lbgi_hist", "hbgi_hist",
+            # "cho_hist", "insulin_hist".
             self.env_init_dict['magni_risk_hist'] = []
             for bg in self.env_init_dict['bg_hist']:
                 self.env_init_dict['magni_risk_hist'].append(magni_risk_index([bg]))
