@@ -167,7 +167,7 @@ class DeepSACT1DEnv(gym.Env):
             start_time = datetime(self.start_date.year, self.start_date.month, self.start_date.day, 0, 0, 0)
         assert bw_meals  # otherwise code wouldn't make sense
         if reset_lim is None:
-            self.reset_ldeim = {'lower_lim': 10, 'upper_lim': 1000}
+            self.reset_lim = {'lower_lim': 10, 'upper_lim': 1000}
         else:
             self.reset_lim = reset_lim
         self.load = load
