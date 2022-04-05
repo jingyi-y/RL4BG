@@ -105,6 +105,7 @@ class T1DSimEnv(object):
                 if self.model_device != 'cpu':
                     next_state_tensor = next_state_tensor.cpu()
                 next_state_norm = next_state_tensor.numpy().reshape(-1)
+            # standard scaling because the existence of anomalies
             next_state = (next_state_norm*self.norm_params['std'][:13])+self.norm_params['mu'][:13]
             self.state = next_state
             # calculate BG and CGM

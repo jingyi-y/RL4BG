@@ -299,6 +299,7 @@ class DeepSACT1DEnv(gym.Env):
         bg = self.env.CGM_hist[-self.state_hist:]
         insulin = self.env.insulin_hist[-self.state_hist:]
         if normalize:
+            # max scaling because we set the maximum value that we can have
             bg = np.array(bg)/400.
             insulin = np.array(insulin) * 10
         if len(bg) < self.state_hist:
@@ -321,6 +322,7 @@ class DeepSACT1DEnv(gym.Env):
             return_arr.append(cos_time)
             if self.weekly:
                 # binary flag signalling weekend
+                # there might be a bug: what if we have one weekend day and one workday
                 if self.env.scenario.day == 5 or self.env.scenario.day == 6:
                     return_arr.append(np.full(self.state_hist, 1))  # append the state with 1 if weekend
                 else:
@@ -333,6 +335,7 @@ class DeepSACT1DEnv(gym.Env):
                 cho = np.concatenate((np.full(self.state_hist - len(cho), -1), cho))
             return_arr.append(cho)
         if self.meal_announce is not None:
+            # updated every {sample_time} mins
             meal_val, meal_time = self.announce_meal()
             future_cho = np.full(self.state_hist, meal_val)
             return_arr.append(future_cho)
@@ -356,6 +359,7 @@ class DeepSACT1DEnv(gym.Env):
                 state = np.concatenate((state, np.array([meal_val, meal_time])))
             if normalize:
                 # just the average of 2 days of adult#001, these values are patient-specific
+                # every patient has different value ranges
                 norm_arr = np.array([4.86688301e+03, 4.95825609e+03, 2.52219425e+03, 2.73376341e+02,
                                      1.56207049e+02, 9.72051746e+00, 7.65293763e+01, 1.76808549e+02,
                                      1.76634852e+02, 5.66410518e+00, 1.28448645e+02, 2.49195394e+02,
@@ -367,6 +371,7 @@ class DeepSACT1DEnv(gym.Env):
             if self.suppress_carbs:
                 state[:3] = 0.
             if self.limited_gt:
+                # state[3] = plasma glucose
                 state = np.array([state[3], self.calculate_iob()])
             return state
         return np.stack(return_arr).flatten()
