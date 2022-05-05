@@ -138,12 +138,24 @@ class SoftActorCritic(TorchRLAlgorithm):
         q_target = rewards + (1. - terminals) * self.discount * target_v_values
         qf_loss = self.qf_criterion(q_pred, q_target.detach())
 
+        self.qf_optimizer.zero_grad()
+        qf_loss.backward()
+        if self.gradient_max_value is not None:
+            nn.utils.clip_grad_value_(self.qf.parameters(), self.gradient_max_value)
+        self.qf_optimizer.step()
+
         """
         VF Loss
         """
         q_new_actions = self.qf(obs, new_actions)
         v_target = q_new_actions - alpha*log_pi
         vf_loss = self.vf_criterion(v_pred, v_target.detach())
+
+        self.vf_optimizer.zero_grad()
+        vf_loss.backward()
+        if self.gradient_max_value is not None:
+            nn.utils.clip_grad_value_(self.vf.parameters(), self.gradient_max_value)
+        self.vf_optimizer.step()
 
         """
         Policy Loss
@@ -167,17 +179,6 @@ class SoftActorCritic(TorchRLAlgorithm):
         """
         Update networks
         """
-        self.qf_optimizer.zero_grad()
-        qf_loss.backward()
-        if self.gradient_max_value is not None:
-            nn.utils.clip_grad_value_(self.qf.parameters(), self.gradient_max_value)
-        self.qf_optimizer.step()
-
-        self.vf_optimizer.zero_grad()
-        vf_loss.backward()
-        if self.gradient_max_value is not None:
-            nn.utils.clip_grad_value_(self.vf.parameters(), self.gradient_max_value)
-        self.vf_optimizer.step()
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
